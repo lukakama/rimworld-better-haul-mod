@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Better Hauling</name>
+	<author>Luca De Petrillo</author>
+	<targetVersion>0.0.1</targetVersion>
+	<!--<url></url>-->
+	<description>Improve hauling and picking by using pawn's inventory to haul more things.</description>
+</ModMetaData>
