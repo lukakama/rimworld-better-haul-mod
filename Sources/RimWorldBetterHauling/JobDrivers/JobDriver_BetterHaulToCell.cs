@@ -173,14 +173,24 @@ namespace RimWorldBetterHauling.JobDrivers {
 		}
 
 		protected override IEnumerable<Toil> MakeNewToils() {
-			Toil carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B)
-				.FailOnDestroyedOrNull(TargetIndex.A);
-
 			this.FailOnBurningImmobile(TargetIndex.B);
-			
+
+			this.AddEndCondition(delegate {
+				foreach (var thing in hauledThingsInInventory) {
+					if(!pawn.inventory.Contains(thing)) {
+						return JobCondition.Incompletable;
+					}
+				}
+				return JobCondition.Ongoing;
+			});
+
 			this.AddFinishAction(delegate() {
 				BetterHaulUtils.dropAllInventoryHauledThings(pawn, hauledThingsInInventory);
 			});
+
+
+			Toil carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B)
+				.FailOnDestroyedOrNull(TargetIndex.A);
 
 			Toil reserveHaulable = defineReserveHaulableToil(TargetIndex.A, carryToCell)
 				.FailOnDestroyedOrNull(TargetIndex.A);
@@ -190,30 +200,29 @@ namespace RimWorldBetterHauling.JobDrivers {
 			yield return reserveHaulable;
 
 			Toil gotoToil = Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch);
-			// Handle dynamic reseletion before standard fail conditions.
-			gotoToil.endConditions.Insert(0, delegate () {
-				Job curJob = pawn.jobs.curJob;
-				Thing thing = curJob.GetTarget(TargetIndex.A).Thing;
-				if (curJob.haulMode == HaulMode.ToCellStorage) {
-					IntVec3 cell = pawn.jobs.curJob.GetTarget(TargetIndex.B).Cell;
-					if (thing.DestroyedOrNull()
-							|| (!this.forbiddenInitially && thing.IsForbidden(pawn))
-							|| Toils_Haul.ErrorCheckForCarry(pawn, thing)
-							|| !BetterHaulUtils.isValidStorageAnywhereFor(cell, this.Map, thing)) {
-						if (haulNext(reserveHaulable)) {
-							return JobCondition.Ongoing;
-						} else if (pawn.carryTracker.CarriedThing != null) {
-							job.SetTarget(TargetIndex.A, pawn.carryTracker.CarriedThing);
-							pawn.jobs.curDriver.JumpToToil(carryToCell);
-							return JobCondition.Ongoing;
+			gotoToil.FailOnSomeonePhysicallyInteracting(TargetIndex.A);
+			yield return gotoToil;
+
+			yield return new Toil() {
+				initAction = delegate () {
+					Job curJob = pawn.jobs.curJob;
+					Thing thing = curJob.GetTarget(TargetIndex.A).Thing;
+					if (curJob.haulMode == HaulMode.ToCellStorage) {
+						IntVec3 cell = pawn.jobs.curJob.GetTarget(TargetIndex.B).Cell;
+						if (thing.DestroyedOrNull()
+								|| (!this.forbiddenInitially && thing.IsForbidden(pawn))
+								|| Toils_Haul.ErrorCheckForCarry(pawn, thing)
+								|| !BetterHaulUtils.isValidStorageAnywhereFor(cell, this.Map, thing)) {
+							if (!haulNext(reserveHaulable) && (pawn.carryTracker.CarriedThing != null)) {
+								job.SetTarget(TargetIndex.A, pawn.carryTracker.CarriedThing);
+								pawn.jobs.curDriver.JumpToToil(carryToCell);
+							} else {
+								EndJobWith(JobCondition.Incompletable);
+							}
 						}
-						return JobCondition.Incompletable;
 					}
 				}
-				return JobCondition.Ongoing;
-			});
-			gotoToil.FailOnSomeonePhysicallyInteracting(TargetIndex.A);
-			yield return gotoToil; 
+			}; ;
 
 			yield return BetterHaulUtils.definePickThingToil(TargetIndex.A, hauledThingsInInventory);
 

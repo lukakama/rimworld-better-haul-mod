@@ -13,33 +13,35 @@ namespace RimWorldRealFoW.Utils {
 	class BetterHaulUtils {
 		public static void dropAllInventoryHauledThings(Pawn pawn, List<Thing> hauledThingsInInventory) {
 			foreach (var thingToDrop in hauledThingsInInventory) {
-				// Ensure that all hauled thing are dropped somewhere.
-				Thing resThing;
-				if (!pawn.inventory.innerContainer.TryDrop(thingToDrop, pawn.Position, pawn.Map, ThingPlaceMode.Near, out resThing)) {
-					Log.Error(string.Concat(new object[]
-						{
-							"Incomplete haul for ",
-							pawn,
-							": Could not find anywhere to drop ",
-							thingToDrop,
-							" near ",
-							pawn.Position,
-							". Destroying. This should never happen!"
-						}), false);
-					thingToDrop.Destroy(DestroyMode.Vanish);
-				} else if (resThing != null) {
-					// If something dropped.
+				if (pawn.inventory.Contains(thingToDrop)) {
+					// Ensure that all hauled thing are dropped somewhere.
+					Thing resThing;
+					if (!pawn.inventory.innerContainer.TryDrop(thingToDrop, pawn.Position, pawn.Map, ThingPlaceMode.Near, out resThing)) {
+						Log.Error(string.Concat(new object[]
+							{
+								"Incomplete haul for ",
+								pawn,
+								": Could not find anywhere to drop ",
+								thingToDrop,
+								" near ",
+								pawn.Position,
+								". Destroying. This should never happen!"
+							}), false);
+						thingToDrop.Destroy(DestroyMode.Vanish);
+					} else if (resThing != null) {
+						// If something dropped.
 
-					// As Vanilla, forbid thing dropped from hostiles.
-					if (pawn.Faction.HostileTo(Faction.OfPlayer)) {
-						resThing.SetForbidden(true, false);
-					} else {
-						// Thing hauled in the inventory got all the designator removed. If the thing needs the haul designator, red-add it.
-						// TODO: find a way to track all the designations in order to re-add them.
-						if (resThing.def.designateHaulable) {
-							Designator_Haul haulDesignator = Find.ReverseDesignatorDatabase.Get<Designator_Haul>();
-							if (haulDesignator.CanDesignateThing(resThing).Accepted) {
-								haulDesignator.DesignateThing(resThing);
+						// As Vanilla, forbid thing dropped from hostiles.
+						if (pawn.Faction.HostileTo(Faction.OfPlayer)) {
+							resThing.SetForbidden(true, false);
+						} else {
+							// Thing hauled in the inventory got all the designator removed. If the thing needs the haul designator, red-add it.
+							// TODO: find a way to track all the designations in order to re-add them.
+							if (resThing.def.designateHaulable) {
+								Designator_Haul haulDesignator = Find.ReverseDesignatorDatabase.Get<Designator_Haul>();
+								if (haulDesignator.CanDesignateThing(resThing).Accepted) {
+									haulDesignator.DesignateThing(resThing);
+								}
 							}
 						}
 					}

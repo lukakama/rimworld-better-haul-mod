@@ -39,6 +39,15 @@ namespace RimWorldBetterHauling.JobDrivers {
 				}
 				return JobCondition.Ongoing;
 			});
+			this.AddEndCondition(delegate {
+				foreach (var thing in hauledThingsInInventory) {
+					if (!pawn.inventory.Contains(thing)) {
+						return JobCondition.Incompletable;
+					}
+				}
+				return JobCondition.Ongoing;
+			});
+
 			this.FailOnBurningImmobile(TargetIndex.A);
 			this.FailOn(delegate () {
 				IBillGiver billGiver = this.job.GetTarget(TargetIndex.A).Thing as IBillGiver;
